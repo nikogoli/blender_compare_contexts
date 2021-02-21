@@ -30,9 +30,9 @@ streamlit run show_contexts.py
 1. export_context_addont.py を読み込む (`C:\Users\〇〇\AppData\Roaming\Blender Foundation\Blender\2.91\scripts\addons`の方に入るはず)
 1. プリファレンスのアドオンのタブを「テスト中」に切り替え、「Custom: Export Context.copy()」を有効化する
 1. アドオンのパネルを開くと以下の設定パネルが出るので、必要に応じてパスを変更する
-	* 初期設定では、`カレントディレクトリ/temp`が個別の json の保存先、`カレントディレクトリ/outcome`が結合した json の保存先となっている
+	* 初期設定では、`カレントディレクトリ/temp`が個別の json の保存先、`カレントディレクトリ/outcome`が結合した json の保存先となっている<br>
 	![アドオンの画像](https://github.com/nikogoli/blender_compare_contexts/blob/9ff1c394a5c7ee3c3bf9cb0364d80fc288626528/info/pref.png)
-1. エリア分割状態が保存されていれば、画面の左上のほうが以下のようになっているはず
+1. エリア分割状態が保存されていれば、画面の左上のほうが以下のようになっているはず<br>
 	![ウィンドウの画像](https://github.com/nikogoli/blender_compare_contexts/blob/ffe37f08498b4fc72c79a0963600756da628217f/info/image.png)
 1. 調べたい状況になるように、右側のエリアで Blender を操作する
 1. 左に並んだ16個の「CTX」ボタンを1つずつ押して、個別の json ファイルを保存する
