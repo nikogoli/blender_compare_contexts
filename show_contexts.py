@@ -1,9 +1,7 @@
 from pathlib import Path
 
-import base64
 import json
 import pandas as pd
-import requests
 import streamlit as st
 
 
@@ -18,7 +16,6 @@ EDITORS_BY_TYPE = {
 	"Sequencer Context":["Sequence Editor"]
 	}
 
-
 Home_path = Path.cwd()
 context_DATA_dic = {p.stem:p for p in Path(Home_path, "outcome").iterdir() if p.is_file()}
 
@@ -32,25 +29,21 @@ ROW_NAMES = list(set(sum([v for v in ROW_IN_DOC.values()], []))).sort()
 BE_1st = "初期状態"
 
 
-def extract_diff_dict(Table, Ignore):
+def extract_diff_as_dict(Table):
 	out_dic = {}
 	colnames = Table.columns.tolist()
 
 	for rn in Table.index.tolist():
 		if rn in ["area", "region", "space_data", "active_operator"]:
 			continue
-
 		values = Table.loc[rn].tolist()
-		if Ignore:
-			values = [x.split(" at ")[0] for x in values]
 
 		temp_dic = {}
 		for cn, v in zip(colnames, values):
-			val = v.replace("bpy.data.objects", "D.obs").replace("bpy.data.", "D.")
-			if val not in temp_dic:
-				temp_dic[val] = f"{cn}"
+			if v not in temp_dic:
+				temp_dic[v] = f"{cn}"
 			else:
-				temp_dic[val] = f"{temp_dic[val]}, {cn}"
+				temp_dic[v] = f"{temp_dic[v]}, {cn}"
 
 		if len(list(temp_dic.keys())) >= 2:
 			res_dic = {BE_1st:None }
@@ -91,26 +84,27 @@ def compare_list(Pre_list_text, Act_list_text):
 	return text
 
 
-def compare_data(Outcome_dic, Target_name):
-	with context_DATA_dic[Target_name].open("r", encoding='utf-8') as fr:
-		comp_dic = json.load(fr)
+def compare_data(Active_name, Compare_name, Reduce_dic):
+	if (Reduce_dic["BS"] or Reduce_dic["BD"]) and Reduce_dic["NOT_TABLE"]:
+		Reduce_dic["NOT_TABLE"] = False
+	actvie_dic = get_data(Active_name, Reduce_dic)[1]
+	comp_dic = get_data(Compare_name, Reduce_dic)[1]
 
 	result_dic = {}
-	for type_name in Outcome_dic.keys():
-		partly_talbe = Outcome_dic[type_name]
-		editors = partly_talbe.columns.tolist()
-		items = partly_talbe.index.tolist()
+	for type_name in actvie_dic.keys():
+		partly_tb_act = actvie_dic[type_name]
+		partly_tb_pre = comp_dic[type_name]
+
+		editors = partly_tb_act.columns.tolist()
+		items = partly_tb_act.index.tolist()
 		type_res_dic = {}
 		for itm in items:
 			if itm in ["area", "region", "space_data", "active_operator"]:
 				continue
 			res_itm_for_edi = {}
 			for edi in editors:
-				act = partly_talbe.at[itm, edi].split(" at")[0].replace("bpy.data.objects", "D.obs").replace("bpy.data.", "D.")
-				if itm not in comp_dic[edi]:
-					pre = "項目なし"
-				else:
-					pre = comp_dic[edi][itm].split(" at")[0].replace("bpy.data.objects", "D.obs").replace("bpy.data.", "D.")
+				act = partly_tb_act.at[itm, edi]
+				pre = partly_tb_pre.at[itm, edi]
 				if act != pre:
 					act_is_list = act.startswith("[") and act.endswith("]")
 					pre_is_list = pre.startswith("[") and pre.endswith("]")
@@ -128,7 +122,7 @@ def compare_data(Outcome_dic, Target_name):
 					edi_num = len(key.split(", "))
 					if edi_num == len(COL_NAMES):
 						inverted_dic["全て"] = inverted_dic.pop(key)
-					elif edi_num == len(COL_NAMES ) -1:
+					elif edi_num > 1 and edi_num == len(COL_NAMES ) -1:
 						inverted_dic["他の全て"] = inverted_dic.pop(key)
 				type_res_dic[itm] = inverted_dic
 		result_dic[type_name] = type_res_dic
@@ -136,7 +130,7 @@ def compare_data(Outcome_dic, Target_name):
 
 
 @st.cache
-def get_data(Data_name):
+def get_data(Data_name, Reduce_dic):
 	with context_DATA_dic[Data_name].open("r", encoding='utf-8') as fr:
 		main_dic = json.load(fr)
 	COL_NAMES = sorted(list(main_dic.keys()))
@@ -148,7 +142,16 @@ def get_data(Data_name):
 		context = main_dic[cn]
 		for rn in ROW_NAMES:
 			if rn in context:
-				temp_dic[rn].append(context[rn])
+				if Reduce_dic["AT"]:
+					value = context[rn].split(" at ")[0]
+				else:
+					value = context[rn]
+				if not Reduce_dic["NOT_TABLE"]:
+					if Reduce_dic["BS"]:
+						value = value.replace("<bpy_struct", "<b_s")
+					if Reduce_dic["BD"]:
+						value = value.replace("bpy.data.objects", "D.obs").replace("bpy.data.", "D.")
+				temp_dic[rn].append(value)
 			else:
 				temp_dic[rn].append("項目なし")
 
@@ -165,7 +168,7 @@ def get_data(Data_name):
 
 
 @st.cache
-def get_editor_data(Editor_names):
+def get_editor_data(Editor_names, Reduce_dic):
 	result_dic = {edi:{} for edi in Editor_names}
 	for d_name in context_DATA_dic.keys():
 		with context_DATA_dic[d_name].open("r", encoding='utf-8') as fr:
@@ -188,7 +191,16 @@ def get_editor_data(Editor_names):
 				context = result_dic[edi][d_name]
 				for rn in row_names_by_type:
 					if rn in context:
-						temp_dic[rn].append(context[rn])
+						if Reduce_dic["AT"]:
+							value = context[rn].split(" at ")[0]
+						else:
+							value = context[rn]
+						if not Reduce_dic["NOT_TABLE"]:
+							if Reduce_dic["BS"]:
+								value = value.replace("<bpy_struct", "<b_s")
+							if Reduce_dic["BD"]:
+								value = value.replace("bpy.data.objects", "D.obs").replace("bpy.data.", "D.")
+						temp_dic[rn].append(value)
 					else:
 						temp_dic[rn].append("項目なし")
 
@@ -207,11 +219,53 @@ def get_editor_data(Editor_names):
 #--------- ここから streamlit の表示設定 -------------------
 
 
+# モード設定の表示-------------------------
+
+
+def color_style(val):
+	color_dic = {"項目なし":'gray', "None":'red', "[]":'blue'}
+	if val in color_dic:
+		color = color_dic[val]
+	else:
+		color = 'green'
+	return 'color: %s' % color
+
+"""
+# context.copy() の結果を比較する
+"""
+reduce_at = st.checkbox("bpy_struct の 'at'以下の差異を無視する", True)
+st.empty()
+page_mode = st.radio("context の比較方法",
+			["Blender の状態を固定して、エディタ同士を比較する",
+			 "エディタを固定して Blender の状態同士を比較する"])
+
+st.markdown("省略の設定")
+red_col1, red_col2, red_col3 = st.beta_columns(3)
+reduce_bs = red_col1.checkbox("'<bpy_stcur' → '<b_s'", True)
+reduce_bd = red_col2.checkbox("'bpy.data' → 'D'、 'objects' → 'obs'", True)
+not_aply_table = red_col3.checkbox("表では省略を適用しない", False)
+st.markdown("------------------")
+
+REDUCE_DIC = {"AT":reduce_at, "BS":reduce_bs, "BD":reduce_bd,
+			"NOT_TABLE":not_aply_table}
+
 # サイドバーの設定-------------------------
 
-base_is_editor = st.sidebar.checkbox("エディタを基準にして比較を行う", False)
 
-if base_is_editor:
+if page_mode == "Blender の状態を固定して、エディタ同士を比較する":
+	if BE_1st in context_DATA_dic:
+		idx = list(context_DATA_dic.keys()).index(BE_1st)
+	else:
+		idx = 0
+	target_name = st.sidebar.radio("Blender の状態", list(context_DATA_dic.keys()), index=idx)
+	st.sidebar.markdown("---------------------")
+
+	compare_dic = {
+			f"「{x.split(' + ')[0]}」と比較" if x!=target_name else "比較しない":x
+			for x in context_DATA_dic.keys() }
+	compare_item = st.sidebar.radio("2つの状態の比較",
+					sorted(list(compare_dic.keys()),reverse=True))
+else:
 	edi_names = st.sidebar.multiselect("エディタ", COL_NAMES, default=['3D View'])
 
 	if BE_1st in context_DATA_dic:
@@ -227,46 +281,20 @@ if base_is_editor:
 		active_datas = [n for b, n in zip(data_bools, shown_datas) if b]
 	else:
 		active_datas = st.sidebar.multiselect("状態", shown_datas, default=shown_datas)
-else:
-	if BE_1st in context_DATA_dic:
-		idx = list(context_DATA_dic.keys()).index(BE_1st)
-	else:
-		idx = 0
-	target_name = st.sidebar.radio("Blender の状態", list(context_DATA_dic.keys()), index=idx)
-	st.sidebar.markdown("---------------------")
 
-	compare_dic = {
-			f"「{x.split(' + ')[0]}」と比較" if x!=target_name else "比較しない":x
-			for x in context_DATA_dic.keys() }
-	compare_name = st.sidebar.radio("2つの状態の比較",
-					sorted(list(compare_dic.keys()),reverse=True))
+
 
 # データフレームの表示-------------------------
 
 
-def color_style(val):
-	color_dic = {"項目なし":'gray', "None":'red', "[]":'blue'}
-	if val in color_dic:
-		color = color_dic[val]
-	else:
-		color = 'green'
-	return 'color: %s' % color
-
-"""
-* Blender 2.91 の初期プロジェクトで取得
-"""
-ignore_at = st.checkbox("bpy_stcur の 'at'以下の差異を無視する", True)
-
-
-
-if base_is_editor:
+if page_mode == "エディタを固定して Blender の状態同士を比較する":
 	"""
-	## ◇ エディタを基準にして比較を行う
+	## ◇ Blender の状態同士を比較する
 	`項目なし`は、そのエリアの context に該当項目が含まれないことを示す
 	"""
 
 	if edi_names:
-		edi_dic = get_editor_data(edi_names)
+		edi_dic = get_editor_data(edi_names, REDUCE_DIC)
 		REV = {v[0]:k for k,v in EDITORS_BY_TYPE.items()}
 		for edi in edi_dic.keys():
 			st.markdown(f"### ◇ {edi}")
@@ -280,7 +308,7 @@ if base_is_editor:
 				df = partly_table.reindex(columns=active_datas)
 				st.dataframe(df.style.applymap(color_style))
 
-				diff_dic = extract_diff_dict(df, ignore_at)
+				diff_dic = extract_diff_as_dict(df)
 				with st.beta_expander("差異　(D = bpy.data,　obs = objects)", expanded=True):
 					st.write(diff_dic)
 					st.markdown("---------------")
@@ -292,36 +320,34 @@ else:
 
 	"""
 	## ◇ API Doc の分類に準拠した表
-	`項目なし`は、そのエリアの context に該当項目が含まれないことを示す
+	*　`項目なし`は、そのエリアの context に該当項目が含まれないことを示す
+	* Global と Screen 以外は関連するエディタのみを表示
 	"""
 
-	is_limit = st.checkbox("Global と Screen 以外は関連するエディタのみ表示", True)
-	
-	table, outcome_dic = get_data(Data_name=target_name)
+	table, outcome_dic = get_data(target_name, REDUCE_DIC)
 	diff_result = None
 
-	if compare_name != "比較しない":
-		comp_target = compare_dic[compare_name]
-		diff_result = compare_data(outcome_dic, comp_target)
+	if compare_item != "比較しない":
+		comp_name = compare_dic[compare_item]
+		diff_result = compare_data(target_name, comp_name, REDUCE_DIC)
 
 
 	for context_type in outcome_dic.keys():
 		st.markdown(f"### ◇ {context_type}")
 		partly_table = outcome_dic[context_type]
-		if is_limit:
-			if context_type in EDITORS_BY_TYPE:
-				partly_table = partly_table[EDITORS_BY_TYPE[context_type]]
+		if context_type in EDITORS_BY_TYPE:
+			partly_table = partly_table[EDITORS_BY_TYPE[context_type]]
 		st.dataframe(partly_table.style.applymap(color_style))
 
 		if diff_result is not None:
 			partly_compared = diff_result[context_type]
-			with st.beta_expander("比較結果　(D = bpy.data,　obs = objects,　bpy_struct において省略あり)", expanded=True):
+			with st.beta_expander("比較結果", expanded=True):
 				st.write(partly_compared)
 				
 		
 		if len(partly_table.columns) >= 2:
 			partly_row_names = partly_table.index.tolist()
-			diff_dic = extract_diff_dict(partly_table, ignore_at)
+			diff_dic = extract_diff_as_dict(partly_table)
 			with st.beta_expander("エディタ間の差異 (area, region, space_data, active_operator は除く)"):
 				st.write(diff_dic)
 				st.markdown("---------------")
@@ -343,5 +369,5 @@ else:
 	st.markdown("------------------")
 	with st.beta_expander("◇ エディタ間の差異：全体 (area, region, space_data, active_operator は除く)", expanded=False):
 
-		all_diff_dic = extract_diff_dict(table, ignore_at)
+		all_diff_dic = extract_diff_as_dict(table)
 		st.write(all_diff_dic)
