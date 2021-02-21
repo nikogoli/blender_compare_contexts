@@ -1,7 +1,7 @@
 # streamlit を利用して Blender の context.copy() の結果を比較する
 結果だけ見たい人は
 ```
-streamlit run https://gist.githubusercontent.com/nikogoli/0819ef7c026a6f50786518822549f25f/raw/125d37cb2cf3ad3754d3db945a8df86e9e326409/contexts_table.py
+streamlit run https://gist.githubusercontent.com/nikogoli/0819ef7c026a6f50786518822549f25f/raw/10a667ec5d6c91ab14c39643dde0908c7b8954b8/contexts_table.py
 ```
 
 ================**WIP**===============
@@ -32,9 +32,10 @@ streamlit run show_contexts.py
 1. アドオンのパネルを開くと以下の設定パネルが出るので、必要に応じてパスを変更する
 	* 初期設定では、`カレントディレクトリ/temp`が個別の json の保存先、`カレントディレクトリ/outcome`が結合した json の保存先となっている<br>
 	![アドオンの画像](https://github.com/nikogoli/blender_compare_contexts/blob/9ff1c394a5c7ee3c3bf9cb0364d80fc288626528/info/pref.png)
-1. エリア分割状態が保存されていれば、画面の左上のほうが以下のようになっているはず<br>
+1. 各エディタのヘッダーの一番左にボタンが表示されるので、押しやすいようにエディタを並べる<br>
+	(エリア分割状態が保存されていれば、以下のようになる)<br>
 	![ウィンドウの画像](https://github.com/nikogoli/blender_compare_contexts/blob/ffe37f08498b4fc72c79a0963600756da628217f/info/image.png)
 1. 調べたい状況になるように、右側のエリアで Blender を操作する
-1. 左に並んだ16個の「CTX」ボタンを1つずつ押して、個別の json ファイルを保存する
-1. アドオンの設定パネルで 状況に応じた名前を設定し、「Combine Json File」を押して json ファイルを結合する
+1. 16個のエディタの「CTX」ボタンを1つずつ押し、個別の json ファイルを保存する
+1. アドオンの設定パネルで適当な名前を設定し、「Combine Json File」を押して json ファイルを結合する
 1. ブラウザを更新すると左側の表示候補に結合したファイルが追加される
