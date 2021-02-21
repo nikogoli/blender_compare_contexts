@@ -56,7 +56,7 @@ def extract_diff_dict(Table, Ignore):
 			res_dic = {BE_1st:None }
 			for key in temp_dic.keys():
 				num = len(temp_dic[key].split(", "))
-				if num == len(colnames)-1:
+				if num > 1 and num == len(colnames)-1:
 					res_dic["他の全て"] = key
 				else:
 					res_dic[temp_dic[key]] = key
@@ -280,7 +280,7 @@ if base_is_editor:
 				df = partly_table.reindex(columns=active_datas)
 				st.dataframe(df.style.applymap(color_style))
 
-				diff_dic = extract_diff_dict(partly_table, ignore_at)
+				diff_dic = extract_diff_dict(df, ignore_at)
 				with st.beta_expander("差異　(D = bpy.data,　obs = objects)", expanded=True):
 					st.write(diff_dic)
 					st.markdown("---------------")
