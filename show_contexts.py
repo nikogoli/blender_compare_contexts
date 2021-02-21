@@ -261,9 +261,9 @@ if page_mode == "Blender の状態を固定して、エディタ同士を比較�
 	st.sidebar.markdown("---------------------")
 
 	compare_dic = {
-			f"「{x.split(' + ')[0]}」と比較" if x!=target_name else "比較しない":x
+			f"「{x}」と" if x!=target_name else "比較しない":x
 			for x in context_DATA_dic.keys() }
-	compare_item = st.sidebar.radio("2つの状態の比較",
+	compare_item = st.sidebar.radio("他の状態と比較する",
 					sorted(list(compare_dic.keys()),reverse=True))
 else:
 	edi_names = st.sidebar.multiselect("エディタ", COL_NAMES, default=['3D View'])
