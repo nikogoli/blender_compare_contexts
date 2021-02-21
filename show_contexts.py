@@ -21,34 +21,48 @@ EDITORS_BY_TYPE = {
 
 Home_path = Path.cwd()
 context_DATA_dic = {p.stem:p for p in Path(Home_path, "outcome").iterdir() if p.is_file()}
+
 Info_path = Home_path / "info" / "contexts_by_doc.json"
 with Info_path.open("r", encoding='utf-8') as fr:
 	ROW_IN_DOC = json.load(fr)
+
 COL_NAMES = ['3D View','Clip Editor','Console','Dope Sheet Editor','File Browser','Graph Editor','Image Editor','Info','Nla Editor','Node Editor','Outliner','Preferences','Properties','Sequence Editor','Text Editor','Topbar']
 ROW_NAMES = list(set(sum([v for v in ROW_IN_DOC.values()], []))).sort()
 
+BE_1st = "初期状態"
 
-def extract_diff_dict(Table):
+
+def extract_diff_dict(Table, Ignore):
 	out_dic = {}
 	colnames = Table.columns.tolist()
+
 	for rn in Table.index.tolist():
 		if rn in ["area", "region", "space_data", "active_operator"]:
 			continue
-		values = Table.loc[rn].tolist()
-		if len(set(values)) >= 2:
-			temp_dic = {x:[] for x in list(set(values))}
-			for cn, v in zip(colnames, values):
-				temp_dic[v].append(cn)
-			out_dic[rn] = temp_dic
 
-	for key in out_dic.keys():
-		for kk in out_dic[key].keys():
-			if len(out_dic[key][kk]) == len(colnames)-1:
-				out_dic[key][kk] = "他の全て"
-			elif len(out_dic[key][kk]) == 1:
-				out_dic[key][kk] = out_dic[key][kk][0]
-			elif len(out_dic[key][kk]) >= 5:
-				out_dic[key][kk] = "それ以外"
+		values = Table.loc[rn].tolist()
+		if Ignore:
+			values = [x.split(" at ")[0] for x in values]
+
+		temp_dic = {}
+		for cn, v in zip(colnames, values):
+			val = v.replace("bpy.data.objects", "D.obs").replace("bpy.data.", "D.")
+			if val not in temp_dic:
+				temp_dic[val] = f"{cn}"
+			else:
+				temp_dic[val] = f"{temp_dic[val]}, {cn}"
+
+		if len(list(temp_dic.keys())) >= 2:
+			res_dic = {BE_1st:None }
+			for key in temp_dic.keys():
+				num = len(temp_dic[key].split(", "))
+				if num == len(colnames)-1:
+					res_dic["他の全て"] = key
+				else:
+					res_dic[temp_dic[key]] = key
+			if res_dic[BE_1st] is None:
+				res_dic.pop(BE_1st)
+			out_dic[rn] = res_dic
 	return out_dic
 
 
@@ -198,13 +212,15 @@ def get_editor_data(Editor_names):
 base_is_editor = st.sidebar.checkbox("エディタを基準にして比較を行う", False)
 
 if base_is_editor:
-	edi_names = st.sidebar.multiselect("エディタ", COL_NAMES, default=[])
+	edi_names = st.sidebar.multiselect("エディタ", COL_NAMES, default=['3D View'])
 
-	if "初期状態" in context_DATA_dic:
-		shown_datas = ["初期状態"] + [x for x in context_DATA_dic.keys() if x != "初期状態"]
+	if BE_1st in context_DATA_dic:
+		shown_datas = [BE_1st] + [x for x in context_DATA_dic.keys() if x != BE_1st]
 	else:
 		shown_datas = list(context_DATA_dic.keys())
 	method = st.sidebar.radio("表示する状態の選択方法", ["Checkbox", "Multi Select"])
+
+	st.sidebar.markdown("◆ 表示する状態")
 	if method == "Checkbox":
 		data_checks = [st.sidebar.checkbox(name, True) for idx, name in enumerate(shown_datas)]
 		data_bools = [x==True for x in data_checks]
@@ -212,8 +228,8 @@ if base_is_editor:
 	else:
 		active_datas = st.sidebar.multiselect("状態", shown_datas, default=shown_datas)
 else:
-	if "初期状態" in context_DATA_dic:
-		idx = list(context_DATA_dic.keys()).index("初期状態")
+	if BE_1st in context_DATA_dic:
+		idx = list(context_DATA_dic.keys()).index(BE_1st)
 	else:
 		idx = 0
 	target_name = st.sidebar.radio("Blender の状態", list(context_DATA_dic.keys()), index=idx)
@@ -238,8 +254,9 @@ def color_style(val):
 
 """
 * Blender 2.91 の初期プロジェクトで取得
-* 各エリアにオペレーターを設置し、`bpy.context.copy()` を保存
 """
+ignore_at = st.checkbox("bpy_stcur の 'at'以下の差異を無視する", True)
+
 
 
 if base_is_editor:
@@ -263,12 +280,12 @@ if base_is_editor:
 				df = partly_table.reindex(columns=active_datas)
 				st.dataframe(df.style.applymap(color_style))
 
-				diff_dic = extract_diff_dict(partly_table)
-				with st.beta_expander("差異"):
+				diff_dic = extract_diff_dict(partly_table, ignore_at)
+				with st.beta_expander("差異　(D = bpy.data,　obs = objects)", expanded=True):
 					st.write(diff_dic)
 					st.markdown("---------------")
 
-			st.markdown(f"---------")
+			st.markdown("---------")
 
 else:
 	#-- API Doc 準拠 -------------------
@@ -304,7 +321,7 @@ else:
 		
 		if len(partly_table.columns) >= 2:
 			partly_row_names = partly_table.index.tolist()
-			diff_dic = extract_diff_dict(partly_table)
+			diff_dic = extract_diff_dict(partly_table, ignore_at)
 			with st.beta_expander("エディタ間の差異 (area, region, space_data, active_operator は除く)"):
 				st.write(diff_dic)
 				st.markdown("---------------")
@@ -326,5 +343,5 @@ else:
 	st.markdown("------------------")
 	with st.beta_expander("◇ エディタ間の差異：全体 (area, region, space_data, active_operator は除く)", expanded=False):
 
-		all_diff_dic = extract_diff_dict(table)
+		all_diff_dic = extract_diff_dict(table, ignore_at)
 		st.write(all_diff_dic)
