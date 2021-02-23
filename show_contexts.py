@@ -232,6 +232,7 @@ def color_style(val):
 
 """
 # context.copy() の結果を比較する
+注：『差異』には `area`, `region`, `space_data`, `active_operator` の違いは含まれない
 """
 reduce_at = st.checkbox("bpy_struct の 'at'以下の差異を無視する", True)
 st.empty()
@@ -334,24 +335,27 @@ else:
 
 	for context_type in outcome_dic.keys():
 		st.markdown(f"### ◇ {context_type}")
-		partly_table = outcome_dic[context_type]
-		if context_type in EDITORS_BY_TYPE:
-			partly_table = partly_table[EDITORS_BY_TYPE[context_type]]
-		st.dataframe(partly_table.style.applymap(color_style))
+		try:
+			partly_table = outcome_dic[context_type]
+			if context_type in EDITORS_BY_TYPE:
+				partly_table = partly_table[EDITORS_BY_TYPE[context_type]]
+			st.dataframe(partly_table.style.applymap(color_style))
 
-		if diff_result is not None:
-			partly_compared = diff_result[context_type]
-			with st.beta_expander("比較結果", expanded=True):
-				st.write(partly_compared)
-				
-		
-		if len(partly_table.columns) >= 2:
-			partly_row_names = partly_table.index.tolist()
-			diff_dic = extract_diff_as_dict(partly_table)
-			with st.beta_expander("エディタ間の差異 (area, region, space_data, active_operator は除く)"):
-				st.write(diff_dic)
-				st.markdown("---------------")
-
+			if diff_result is not None:
+				partly_compared = diff_result[context_type]
+				with st.beta_expander("比較結果", expanded=True):
+					st.write(partly_compared)
+					
+			
+			if len(partly_table.columns) >= 2:
+				partly_row_names = partly_table.index.tolist()
+				diff_dic = extract_diff_as_dict(partly_table)
+				with st.beta_expander("エディタ間の差異"):
+					st.write(diff_dic)
+					st.markdown("---------------")
+			
+		except KeyError as e:
+			pass
 
 	#-- 集計表 -------------------
 
@@ -367,7 +371,7 @@ else:
 
 
 	st.markdown("------------------")
-	with st.beta_expander("◇ エディタ間の差異：全体 (area, region, space_data, active_operator は除く)", expanded=False):
+	with st.beta_expander("◇ エディタ間の差異：全体", expanded=False):
 
 		all_diff_dic = extract_diff_as_dict(table)
 		st.write(all_diff_dic)
