@@ -230,6 +230,18 @@ def color_style(val):
 		color = 'green'
 	return 'color: %s' % color
 
+def highlight_row(Series, text):
+	if text == "":
+		return ['' for v in Series]
+	elif "," in text:
+		texts = text.split(",")
+	else:
+		texts = [text]
+	if sum([(tx in Series.name) for tx in texts]):
+		return ['background-color: lightyellow' for v in Series]
+	else:
+		return ['' for v in Series]
+
 """
 # context.copy() の結果を比較する
 注：『差異』には `area`, `region`, `space_data`, `active_operator` の違いは含まれない
@@ -251,6 +263,9 @@ REDUCE_DIC = {"AT":reduce_at, "BS":reduce_bs, "BD":reduce_bd,
 			"NOT_TABLE":not_aply_table}
 
 # サイドバーの設定-------------------------
+
+
+highlight = st.sidebar.text_input("行を名前でハイライト ( , 区切りで複数可)",value="")
 
 
 if page_mode == "Blender の状態を固定して、エディタ同士を比較する":
@@ -307,7 +322,9 @@ if page_mode == "エディタを固定して Blender の状態同士を比較す
 				st.markdown(f"#### ◇ {context_type}")
 				partly_table = edi_dic[edi][context_type]
 				df = partly_table.reindex(columns=active_datas)
-				st.dataframe(df.style.applymap(color_style))
+				st.dataframe(
+					df.style.applymap(color_style)
+							.apply(highlight_row, text=highlight, axis=1))
 
 				diff_dic = extract_diff_as_dict(df)
 				with st.beta_expander("差異　(D = bpy.data,　obs = objects)", expanded=True):
@@ -339,7 +356,9 @@ else:
 			partly_table = outcome_dic[context_type]
 			if context_type in EDITORS_BY_TYPE:
 				partly_table = partly_table[EDITORS_BY_TYPE[context_type]]
-			st.dataframe(partly_table.style.applymap(color_style))
+			st.dataframe(
+					partly_table.style.applymap(color_style)
+							.apply(highlight_row, text=highlight, axis=1))
 
 			if diff_result is not None:
 				partly_compared = diff_result[context_type]
@@ -363,7 +382,9 @@ else:
 	st.markdown("------------------")
 	with st.beta_expander("◇ 各エリアで取得した context の一覧表"):
 		st.markdown("`項目なし`は、そのエリアの context に該当項目が含まれないことを示す")
-		st.dataframe(table.style.applymap(color_style))
+		st.dataframe(
+				table.style.applymap(color_style)
+						.apply(highlight_row, text=highlight, axis=1))
 
 
 
