@@ -1,10 +1,9 @@
 # streamlit を利用して Blender の context.copy() の結果を比較する
-結果だけ見たい人は
+結果だけ見たい人用の見本 (※更新していないので古い)
 ```
 streamlit run https://gist.githubusercontent.com/nikogoli/0819ef7c026a6f50786518822549f25f/raw/10a667ec5d6c91ab14c39643dde0908c7b8954b8/contexts_table.py
 ```
 
-================**WIP**===============
 
 #### 注意
 * __手作業が多い__
